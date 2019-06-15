@@ -1,262 +1,142 @@
+/*
+ * DSP Example is part of the DSP Lecture at TEC-Costa Rica
+ * Copyright (C) 2010  Pablo Alvarado
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * \file   mainwindow.cpp
+ *         Implements the equalizer H(w) computation
+ * \author Pablo Alvarado
+ * \date   2010.12.12
+ *
+ * $Id: equalizer.cpp $
+ */
+
+
 #include "mainwindow.h"
+#include "ui_mainwindow.h"
+#include "jack.h"
+#include <string>
 
-#include <QCoreApplication>
 
-#include <QBuffer>
-#include <QAudioOutput>
-#include <QByteArray>
-#include <QtMath>
-#include <QDebug>
+#undef _DSP_DEBUG
+#define _DSP_DEBUG
+
+#ifdef _DSP_DEBUG
+#define _debug(x) std::cerr << x
+#include <iostream>
+#else
+#define _debug(x)
+#endif
+
+
+/**
+ * Precision used by trimming
+ */
+const float MainWindow::Epsilon = 0.001;
+
 
 MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent)
+    QMainWindow(parent),
+    ui(new Ui::MainWindow),
+    verbose_(false),
+    dspChanged_(true)
 {
-    //Create the buttons
-    m_pButton0 = new QPushButton("0", this);
-    m_pButton1 = new QPushButton("1", this);
-    m_pButton2 = new QPushButton("2", this);
-    m_pButton3 = new QPushButton("3", this);
-    m_pButton4 = new QPushButton("4", this);
-    m_pButton5 = new QPushButton("5", this);
-    m_pButton6 = new QPushButton("6", this);
-    m_pButton7 = new QPushButton("7", this);
-    m_pButton8 = new QPushButton("8", this);
-    m_pButton9 = new QPushButton("9", this);
-    m_pButtonA = new QPushButton("A", this);
-    m_pButtonB = new QPushButton("B", this);
-    m_pButtonC = new QPushButton("C", this);
-    m_pButtonD = new QPushButton("D", this);
-    m_pButtonAst = new QPushButton("*", this);
-    m_pButtonNum = new QPushButton("#", this);
+    ui->setupUi(this);
+    /*
+     * Set up a timer 4 times in a second to check if the user
+     * changed the equalizer values, and if so, then create a new
+     * filter response
+     */
+    timer_ = new QTimer(this);
+    connect(timer_, SIGNAL(timeout()), this, SLOT(update()));
+    timer_->start(250);
 
-    //set size and location of the button
-    m_pButton1->setGeometry(QRect( QPoint(100, 100), QSize(50, 50) ));
-    m_pButton2->setGeometry(QRect( QPoint(150, 100), QSize(50, 50) ));
-    m_pButton3->setGeometry(QRect( QPoint(200, 100), QSize(50, 50) ));
-    m_pButtonA->setGeometry(QRect( QPoint(250, 100), QSize(50, 50) ));
-    m_pButton4->setGeometry(QRect( QPoint(100, 150), QSize(50, 50) ));
-    m_pButton5->setGeometry(QRect( QPoint(150, 150), QSize(50, 50) ));
-    m_pButton6->setGeometry(QRect( QPoint(200, 150), QSize(50, 50) ));
-    m_pButtonB->setGeometry(QRect( QPoint(250, 150), QSize(50, 50) ));
-    m_pButton7->setGeometry(QRect( QPoint(100, 200), QSize(50, 50) ));
-    m_pButton8->setGeometry(QRect( QPoint(150, 200), QSize(50, 50) ));
-    m_pButton9->setGeometry(QRect( QPoint(200, 200), QSize(50, 50) ));
-    m_pButtonC->setGeometry(QRect( QPoint(250, 200), QSize(50, 50) ));
-    m_pButtonAst->setGeometry(QRect( QPoint(100, 250), QSize(50, 50) ));
-    m_pButton0->setGeometry(QRect( QPoint(150, 250), QSize(50, 50) ));
-    m_pButtonNum->setGeometry(QRect( QPoint(200, 250), QSize(50, 50) ));
-    m_pButtonD->setGeometry(QRect( QPoint(250, 250), QSize(50, 50) ));
+    dsp_ = new dspSystem;
+    jack::init(dsp_);
 
-    //Connect buttons signal to appropriate slot
-    connect(m_pButton0, SIGNAL (released()),this, SLOT (handleButton0()));
-    connect(m_pButton1, SIGNAL (released()),this, SLOT (handleButton1()));
-    connect(m_pButton2, SIGNAL (released()),this, SLOT (handleButton2()));
-    connect(m_pButton3, SIGNAL (released()),this, SLOT (handleButton3()));
-    connect(m_pButton4, SIGNAL (released()),this, SLOT (handleButton4()));
-    connect(m_pButton5, SIGNAL (released()),this, SLOT (handleButton5()));
-    connect(m_pButton6, SIGNAL (released()),this, SLOT (handleButton6()));
-    connect(m_pButton7, SIGNAL (released()),this, SLOT (handleButton7()));
-    connect(m_pButton8, SIGNAL (released()),this, SLOT (handleButton8()));
-    connect(m_pButton9, SIGNAL (released()),this, SLOT (handleButton9()));
-    connect(m_pButtonA, SIGNAL (released()),this, SLOT (handleButtonA()));
-    connect(m_pButtonB, SIGNAL (released()),this, SLOT (handleButtonB()));
-    connect(m_pButtonC, SIGNAL (released()),this, SLOT (handleButtonC()));
-    connect(m_pButtonD, SIGNAL (released()),this, SLOT (handleButtonD()));
-    connect(m_pButtonAst, SIGNAL (released()),this, SLOT (handleButtonAst()));
-    connect(m_pButtonNum, SIGNAL (released()),this, SLOT (handleButtonNum()));
-}
+    // parse some command line arguments
+    QStringList argv(QCoreApplication::arguments());
 
-
-void MainWindow::handleButton0()
- {
-     play("0");
-
- }
-
-void MainWindow::handleButton1()
- {
-     play("1");
-
- }
-
-void MainWindow::handleButton2()
- {
-     play("2");
-
- }
-
-void MainWindow::handleButton3()
- {
-     play("3");
-
- }
-
-void MainWindow::handleButton4()
- {
-     play("4");
-
- }
-
-void MainWindow::handleButton5()
- {
-     play("5");
-
- }
-
-void MainWindow::handleButton6()
- {
-     play("6");
-
- }
-
-void MainWindow::handleButton7()
- {
-     play("7");
-
- }
-
-void MainWindow::handleButton8()
- {
-     play("8");
-
- }
-
-void MainWindow::handleButton9()
- {
-     play("9");
-
- }
-
-void MainWindow::handleButtonA()
- {
-     play("A");
-
- }
-
-void MainWindow::handleButtonB()
- {
-     play("B");
-
- }
-
-void MainWindow::handleButtonC()
- {
-     play("C");
-
- }
-
-void MainWindow::handleButtonD()
- {
-     play("D");
-
- }
-
-void MainWindow::handleButtonAst()
- {
-     play("*");
-
- }
-
-void MainWindow::handleButtonNum()
- {
-     play("#");
-
- }
-
-void MainWindow::play(QString number){
-    constexpr double SAMPLE_RATE = 44100;
-
-    // Set parameters for the output sound
-    double duration = 0.2;
-    double amplitude = 0.8;
-    double frequency1 = 0;
-    double frequency2 = 0;
-    double f1 = 0;
-    double f2 = 0;
-    double sample = 0;
-
-    if(QString::compare("1",number)==0 || QString::compare("4",number)==0 || QString::compare("7",number)==0 || QString::compare("*",number)==0){
-        frequency1 = 1209;
+    QStringList::const_iterator it(argv.begin());
+    while(it!=argv.end()) {
+      if ((*it)=="-v" || (*it)=="--verbose") {
+        verbose_=true;
+      } else if ((*it).indexOf(".wav",0,Qt::CaseInsensitive)>0) {
+        //ui->fileEdit->setText(*it);
+        std::string tmp(qPrintable(*it));
+        jack::playAlso(tmp.c_str());
+      }
+      ++it;
     }
-    else if(QString::compare("2",number)==0 || QString::compare("5",number)==0 || QString::compare("8",number)==0 || QString::compare("0",number)==0){
-        frequency1 = 1336;
-    }
-    else if(QString::compare("3",number)==0 || QString::compare("6",number)==0 || QString::compare("9",number)==0 || QString::compare("#",number)==0){
-        frequency1 = 1477;
-    }
-    else if(QString::compare("A",number)==0 || QString::compare("B",number)==0 || QString::compare("C",number)==0 || QString::compare("D",number)==0){
-        frequency1 = 1633;
-    }
-
-    //Set frequency 2
-    if(QString::compare("1",number)==0 || QString::compare("2",number)==0 || QString::compare("3",number)==0 || QString::compare("A",number)==0){
-        frequency2 = 697;
-    }
-    else if(QString::compare("4",number)==0 || QString::compare("5",number)==0 || QString::compare("6",number)==0 || QString::compare("B",number)==0){
-        frequency2 = 770;
-    }
-    else if(QString::compare("7",number)==0 || QString::compare("8",number)==0 || QString::compare("9",number)==0 || QString::compare("C",number)==0){
-        frequency2 = 852;
-    }
-    else if(QString::compare("*",number)==0 || QString::compare("0",number)==0 || QString::compare("#",number)==0 || QString::compare("D",number)==0){
-        frequency2 = 941;
-    }
-
-
-    f1 = frequency1 / SAMPLE_RATE;
-    f2 = frequency2 / SAMPLE_RATE;
-    sample = 0;
-
-    QByteArray *bytebuf = new QByteArray();
-    bytebuf->resize(duration * SAMPLE_RATE);
-
-    // Generate the required samples
-    for (double t = 0; t < duration*SAMPLE_RATE; t += 1){
-
-        sample = amplitude * sin(2*M_PI*f1*t) + amplitude * sin(2*M_PI*f2*t);
-
-        //Save sample in file
-        bytebuf->insert(t,(quint8)sample);
-
-    }
-
-    tone(bytebuf);
 
 }
 
-void MainWindow::tone(QByteArray *bytebuf){
-    // Make a QBuffer from our QByteArray
-    QBuffer* input = new QBuffer(bytebuf);
-    input->open(QIODevice::ReadOnly);
-
-    QAudioFormat format;
-    // Set up the format
-    format.setSampleRate(44100);
-    format.setChannelCount(1);
-    format.setSampleSize(8);
-    format.setCodec("audio/pcm");
-    format.setByteOrder(QAudioFormat::LittleEndian);
-    format.setSampleType(QAudioFormat::UnSignedInt);
-
-    QAudioDeviceInfo info(QAudioDeviceInfo::defaultOutputDevice());
-    if (!info.isFormatSupported(format)) {
-        qWarning()<<"Raw audio format not supported by backend, cannot play audio.";
-    }
-
-    QAudioOutput* audio = new QAudioOutput(format);
-    audio->setBufferSize(16384);
-    audio->start(input);
-
-    QEventLoop loop;
-       QObject::connect(audio, SIGNAL(stateChanged(QAudio::State)), &loop, SLOT(quit()));
-       do{
-           loop.exec();
-       }while(audio->state() == QAudio::ActiveState);
-
-
-}
 
 MainWindow::~MainWindow()
 {
+    jack::close();
+    delete timer_;
+    delete ui;
+    delete dsp_;
+}
 
+void MainWindow::update() {
+    if(dspChanged_){
+        _debug("Updating" << std::endl);
+
+        dspChanged_=false;
+    }
+    
+}
+
+
+void MainWindow::on_volumeSlider_valueChanged(int value){
+    if (!dspChanged_){
+        dspChanged_=true;
+    }
+    dsp_->updateVolume(value);
+    ;
+}
+
+
+void MainWindow::on_fileButton_clicked() {
+  /*selectedFiles_ =
+      QFileDialog::getOpenFileNames(this,
+                                   "Select one or more audio files to open",
+                                   ui->fileEdit->text(),
+                                   "WAV Files (*.wav)");
+
+  if (!selectedFiles_.empty()) {
+    ui->fileEdit->setText(*selectedFiles_.begin());
+
+    jack::stopFiles();
+    QStringList::iterator it;
+    for (it=selectedFiles_.begin();it!=selectedFiles_.end();++it) {
+      std::string tmp(qPrintable(*it));
+      jack::playAlso(tmp.c_str());
+    }
+  }*/
+}
+
+
+void MainWindow::on_fileEdit_returnPressed() {
+  jack::stopFiles();
+  /*std::string tmp(qPrintable(ui->fileEdit->text()));
+  if (!tmp.empty()) {
+    jack::playAlso(tmp.c_str());
+  }*/
 }

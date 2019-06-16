@@ -32,6 +32,7 @@
 #include <string>
 #include "unistd.h"
 #include <QDebug>
+#include <QStringListModel>
 
 
 #undef _DSP_DEBUG
@@ -60,6 +61,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+
     /*
      * Set up a timer 4 times in a second to check if the user
      * changed the equalizer values, and if so, then create a new
@@ -79,7 +81,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect( timer, SIGNAL( timeout() ), this, SLOT( onTimeout() ) );
 
     sound = new QSound("");
-
+    jack::init(dsp_);
 
 
 
@@ -104,13 +106,23 @@ void MainWindow::update() {
 }
 
 void MainWindow::updateNumber(QString num){
+        number = number + num;
+        ui->txtNumber->setText(number);
 
-    number = number + num;
-    ui->txtNumber->setText(number);
 }
 
-void MainWindow::call(){
+void MainWindow::call(QString num){
 
+    if(num != ""){
+        reg.insert(reg.size(),num);
+        ui->listNumbers->setModel(new QStringListModel(QList<QString>::fromVector(reg)));
+    }
+
+    listNumber = num;
+    listNumber.prepend("#");
+    listNumber.append("*");
+    number = "";
+    timer->start(500);  // In milliseconds.
 }
 
 
@@ -163,6 +175,8 @@ void MainWindow::on_m_pButtonA_clicked()
 {
     if(hanged == false){
         QSound::play("keys/A.wav");
+        call("911");
+
     }
 
 }
@@ -198,6 +212,9 @@ void MainWindow::on_m_pButtonB_clicked()
 {
     if(hanged == false){
         QSound::play("keys/B.wav");
+        if(reg.size()>0){
+            call(reg.at(reg.size()-1));
+        }
     }
 
 }
@@ -233,6 +250,13 @@ void MainWindow::on_m_pButtonC_clicked()
 {
     if(hanged == false){
         QSound::play("keys/C.wav");
+
+        volume = volume + 2;
+        if(volume > 50){
+            volume = 50;
+        }
+
+        ui->volumeSlider->setValue(volume);
     }
 
 }
@@ -241,7 +265,6 @@ void MainWindow::on_m_pButtonAst_clicked()
 {
     if(hanged == false){
         QSound::play("keys/Ast.wav");
-        updateNumber("*");
     }
 
 }
@@ -259,22 +282,14 @@ void MainWindow::on_m_pButtonNum_clicked()
 {
     if(hanged == false){
 
-        updateNumber("#");
-
-        //listNumber = "*"+number;
-        listNumber = number;
-        listNumber.insert(0,"*");
         sound->play("keys/Num.wav");
-        timer->start(1000);  // In milliseconds.
-
-
+        call(number);
     }
 
 }
 
 void MainWindow::onTimeout()
 {
-    printf(" AQUI ");
     if( sound->isFinished() )
     {
         timer->stop();
@@ -283,17 +298,17 @@ void MainWindow::onTimeout()
             QString n = listNumber.at(0);
             QString path = "keys/"+n+"t.wav";
 
-            printf("%s",path.toLocal8Bit().data());
-
-
             sound->play(path);
             listNumber.remove(0,1);
             timer->start(80);  // In milliseconds.
         }
         else{
             number = "";
+            if(hanged){
+                ui->volumeSlider->setValue(0);
+                volume = 0;
+            }
         }
-
     }
 }
 
@@ -301,6 +316,14 @@ void MainWindow::on_m_pButtonD_clicked()
 {
     if(hanged == false){
         QSound::play("keys/D.wav");
+
+        volume = volume - 2;
+        if(volume < 0){
+            volume = 0;
+        }
+
+        ui->volumeSlider->setValue(volume);
+
     }
 }
 
@@ -308,20 +331,25 @@ void MainWindow::on_m_pButtonD_clicked()
 void MainWindow::on_m_pButtonHang_clicked()
 {
     if(hanged){
-        jack::init(dsp_);
         hanged = false;
         dsp_->updateVolume(volume);
         ui->m_pButtonHang->setText("Colgar");
         ui->txtNumber->setEnabled(true);
+        ui->volumeSlider->setEnabled(true);
+        ui->volumeSlider->setValue(10);
+        volume = 10;
+
     }
     else{
-        jack::close();
+
+        call("");
+
         hanged = true;
         ui->m_pButtonHang->setText("Descolgar");
         ui->txtNumber->setEnabled(false);
+        ui->volumeSlider->setEnabled(false);
+
     }
-
-
 }
 
 

@@ -370,6 +370,7 @@ void jack::init(processor* proc) {
     std::cerr << "cannot connect input ports" << std::endl;
   }
 
+
   /* connect right microphone */
   if (jack_connect(client_, ports[1], jack_port_name (inputPort_))) {
     std::cerr << "cannot connect input ports" << std::endl;
@@ -425,6 +426,8 @@ int jack::process(jack_nframes_t nframes, void *arg) {
   _debug(prog[progIdx] << "\r");
 #endif
 
+
+
   jack_default_audio_sample_t *in, *out;
 
   if (playingFile_) {
@@ -433,6 +436,7 @@ int jack::process(jack_nframes_t nframes, void *arg) {
   } else {
     in  = static_cast<jack_default_audio_sample_t*>
           (jack_port_get_buffer(inputPort_, nframes));
+
   }
   out = static_cast<jack_default_audio_sample_t*>
         (jack_port_get_buffer(outputPort_,nframes));

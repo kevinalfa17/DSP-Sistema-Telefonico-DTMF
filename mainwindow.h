@@ -81,6 +81,8 @@ private:
       QString number;
       QString listNumber;
 
+      QVector<QString> reg;
+
 
      /**
       * Timer used to recompute the filter once the user changes the
@@ -106,7 +108,7 @@ private:
 
      void updateNumber(QString number);
 
-     void call();
+     void call(QString num);
 
 
 

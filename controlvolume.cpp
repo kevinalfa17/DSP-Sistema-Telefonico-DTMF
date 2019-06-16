@@ -27,6 +27,7 @@
 
 #include "controlvolume.h"
 #include <cmath>
+#include "stdio.h"
 
 /*
  * Constructor
@@ -51,8 +52,13 @@ controlVolume::~controlVolume(){
  */
 
 void controlVolume::filter(int blockSize, int volumeGain, float *in, float *out){
+
+    float *out2;
     for (int n=0; n<blockSize;++n){
         out[n]=(volumeGain)*in[n]*0.02;
+      //  out2[n]=in[n]*0.02;
+        //printf("%f.",out[n]);
     }
+
 
 }

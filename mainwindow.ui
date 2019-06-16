@@ -26,6 +26,9 @@
     <layout class="QHBoxLayout" name="VolumeLayout">
      <item>
       <widget class="QSlider" name="volumeSlider">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="maximum">
         <number>50</number>
        </property>

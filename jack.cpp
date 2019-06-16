@@ -382,7 +382,7 @@ void jack::init(processor* proc) {
     std::cerr << "no physical playback ports" << std::endl;
     exit (1);
   }
-
+  ////////////////////////////////////////////////////////////////////////////////
   /* connect left speaker */
   if (jack_connect(client_,jack_port_name(outputPort_), ports[0])) {
     std::cerr << "cannot connect output ports" << std::endl;
@@ -392,6 +392,8 @@ void jack::init(processor* proc) {
   if (jack_connect(client_,jack_port_name(outputPort_), ports[1])) {
     std::cerr << "cannot connect output ports" << std::endl;
   }
+  ////////////////////////////////////////////////////////////////////////////////
+
 
 #define ASUS_EEE
 #ifdef ASUS_EEE

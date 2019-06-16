@@ -30,6 +30,8 @@
 #include "ui_mainwindow.h"
 #include "jack.h"
 #include <string>
+#include "unistd.h"
+#include <QDebug>
 
 
 #undef _DSP_DEBUG
@@ -54,8 +56,10 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow),
     verbose_(false),
     dspChanged_(true)
+
 {
     ui->setupUi(this);
+
     /*
      * Set up a timer 4 times in a second to check if the user
      * changed the equalizer values, and if so, then create a new
@@ -66,22 +70,18 @@ MainWindow::MainWindow(QWidget *parent) :
     timer_->start(250);
 
     dsp_ = new dspSystem;
-    jack::init(dsp_);
 
-    // parse some command line arguments
-    QStringList argv(QCoreApplication::arguments());
+    hanged = true;
+    volume = 0;
+    number = "";
 
-    QStringList::const_iterator it(argv.begin());
-    while(it!=argv.end()) {
-      if ((*it)=="-v" || (*it)=="--verbose") {
-        verbose_=true;
-      } else if ((*it).indexOf(".wav",0,Qt::CaseInsensitive)>0) {
-        //ui->fileEdit->setText(*it);
-        std::string tmp(qPrintable(*it));
-        jack::playAlso(tmp.c_str());
-      }
-      ++it;
-    }
+    timer = new QTimer();
+    connect( timer, SIGNAL( timeout() ), this, SLOT( onTimeout() ) );
+
+    sound = new QSound("");
+
+
+
 
 }
 
@@ -103,40 +103,229 @@ void MainWindow::update() {
     
 }
 
+void MainWindow::updateNumber(QString num){
+
+    number = number + num;
+    ui->txtNumber->setText(number);
+}
+
+void MainWindow::call(){
+
+}
+
+
 
 void MainWindow::on_volumeSlider_valueChanged(int value){
     if (!dspChanged_){
         dspChanged_=true;
     }
+    volume = value;
     dsp_->updateVolume(value);
     ;
 }
 
 
-void MainWindow::on_fileButton_clicked() {
-  /*selectedFiles_ =
-      QFileDialog::getOpenFileNames(this,
-                                   "Select one or more audio files to open",
-                                   ui->fileEdit->text(),
-                                   "WAV Files (*.wav)");
+void MainWindow::on_fileButton_clicked() {}
 
-  if (!selectedFiles_.empty()) {
-    ui->fileEdit->setText(*selectedFiles_.begin());
 
-    jack::stopFiles();
-    QStringList::iterator it;
-    for (it=selectedFiles_.begin();it!=selectedFiles_.end();++it) {
-      std::string tmp(qPrintable(*it));
-      jack::playAlso(tmp.c_str());
+void MainWindow::on_fileEdit_returnPressed() {}
+
+
+void MainWindow::on_m_pButton1_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/1.wav");
+        updateNumber("1");
     }
-  }*/
+
+}
+
+void MainWindow::on_m_pButton2_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/2.wav");
+        updateNumber("2");
+    }
+
 }
 
 
-void MainWindow::on_fileEdit_returnPressed() {
-  jack::stopFiles();
-  /*std::string tmp(qPrintable(ui->fileEdit->text()));
-  if (!tmp.empty()) {
-    jack::playAlso(tmp.c_str());
-  }*/
+void MainWindow::on_m_pButton3_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/3.wav");
+        updateNumber("3");
+    }
+
+}
+
+void MainWindow::on_m_pButtonA_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/A.wav");
+    }
+
+}
+
+void MainWindow::on_m_pButton4_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/4.wav");
+        updateNumber("4");
+    }
+
+}
+
+void MainWindow::on_m_pButton5_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/5.wav");
+        updateNumber("5");
+    }
+
+}
+
+void MainWindow::on_m_pButton6_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/6.wav");
+        updateNumber("6");
+    }
+
+}
+
+void MainWindow::on_m_pButtonB_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/B.wav");
+    }
+
+}
+
+void MainWindow::on_m_pButton7_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/7.wav");
+        updateNumber("7");
+    }
+
+}
+
+void MainWindow::on_m_pButton8_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/8.wav");
+        updateNumber("8");
+    }
+
+}
+
+void MainWindow::on_m_pButton9_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/9.wav");
+        updateNumber("9");
+    }
+
+}
+
+void MainWindow::on_m_pButtonC_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/C.wav");
+    }
+
+}
+
+void MainWindow::on_m_pButtonAst_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/Ast.wav");
+        updateNumber("*");
+    }
+
+}
+
+void MainWindow::on_m_pButton0_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/0.wav");
+        updateNumber("0");
+    }
+
+}
+
+void MainWindow::on_m_pButtonNum_clicked()
+{
+    if(hanged == false){
+
+        updateNumber("#");
+
+        //listNumber = "*"+number;
+        listNumber = number;
+        listNumber.insert(0,"*");
+        sound->play("keys/Num.wav");
+        timer->start(1000);  // In milliseconds.
+
+
+    }
+
+}
+
+void MainWindow::onTimeout()
+{
+    printf(" AQUI ");
+    if( sound->isFinished() )
+    {
+        timer->stop();
+        if(listNumber.size()>0){
+
+            QString n = listNumber.at(0);
+            QString path = "keys/"+n+"t.wav";
+
+            printf("%s",path.toLocal8Bit().data());
+
+
+            sound->play(path);
+            listNumber.remove(0,1);
+            timer->start(80);  // In milliseconds.
+        }
+        else{
+            number = "";
+        }
+
+    }
+}
+
+void MainWindow::on_m_pButtonD_clicked()
+{
+    if(hanged == false){
+        QSound::play("keys/D.wav");
+    }
+}
+
+
+void MainWindow::on_m_pButtonHang_clicked()
+{
+    if(hanged){
+        jack::init(dsp_);
+        hanged = false;
+        dsp_->updateVolume(volume);
+        ui->m_pButtonHang->setText("Colgar");
+        ui->txtNumber->setEnabled(true);
+    }
+    else{
+        jack::close();
+        hanged = true;
+        ui->m_pButtonHang->setText("Descolgar");
+        ui->txtNumber->setEnabled(false);
+    }
+
+
+}
+
+
+void MainWindow::on_txtNumber_textChanged()
+{
+    number = ui->txtNumber->toPlainText();
 }

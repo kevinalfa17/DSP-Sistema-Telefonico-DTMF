@@ -29,8 +29,12 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QBuffer>
+#include <QAudioOutput>
+#include <QByteArray>
 #include <QTimer>
 #include <QFileDialog>
+#include <QSound>
 
 #include "dspsystem.h"
 
@@ -62,6 +66,23 @@ private:
      bool verbose_;
 
      /**
+      * Enable Disable Mic Flag
+      */
+      bool hanged;
+
+      /**
+       * Volume
+       */
+      int volume;
+
+      /**
+       * Number
+       */
+      QString number;
+      QString listNumber;
+
+
+     /**
       * Timer used to recompute the filter once the user changes the
       * values
       */
@@ -82,7 +103,17 @@ private:
       *DSP change
       */
      bool dspChanged_;
-     
+
+     void updateNumber(QString number);
+
+     void call();
+
+
+
+
+    QTimer* timer;
+    QSound * sound;
+
    private slots:
      void on_fileEdit_returnPressed();
      void on_fileButton_clicked();
@@ -90,6 +121,28 @@ private:
 
 
      void update();
+
+     void on_m_pButton1_clicked();
+     void on_m_pButtonHang_clicked();
+     void on_m_pButton2_clicked();
+     void on_m_pButton3_clicked();
+     void on_m_pButtonA_clicked();
+     void on_m_pButton4_clicked();
+     void on_m_pButton5_clicked();
+     void on_m_pButton6_clicked();
+     void on_m_pButtonB_clicked();
+     void on_m_pButton7_clicked();
+     void on_m_pButton8_clicked();
+     void on_m_pButton9_clicked();
+     void on_m_pButtonC_clicked();
+     void on_m_pButtonAst_clicked();
+     void on_m_pButton0_clicked();
+     void on_m_pButtonNum_clicked();
+     void on_m_pButtonD_clicked();
+     void on_txtNumber_textChanged();
+
+     void onTimeout();
+
 
 };
 

@@ -72,7 +72,7 @@ public:
 
    void DetMuestra(float *entrada, int NMuestra);
 
-   void Validacion(float *Trama, int IDCorrecto);
+   void Validacion(float *Trama, int TramaProc, int IDCorrecto);
 
    void FiltradoT(float *Trama, int numero);
 
